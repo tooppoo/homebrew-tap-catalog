@@ -88,3 +88,12 @@ jobs:
           set -eux
           brew uninstall git-kura
           ! command -v git-kura
+
+  smoke-test:
+    runs-on: macos-latest
+    steps:
+      - run: brew tap tooppoo/tap-catalog
+      - run: brew install tooppoo/tap-catalog/git-kura
+      - run: git-kura --version
+      - run: brew test tooppoo/tap-catalog/git-kura
+      - run: brew uninstall git-kura
