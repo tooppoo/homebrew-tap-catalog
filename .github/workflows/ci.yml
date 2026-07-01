@@ -30,31 +30,22 @@ jobs:
       matrix:
         include:
           - runner: macos-latest
-            expected_arch: arm64
+            expected_machine: arm64
           - runner: macos-15-intel
-            expected_arch: i386
+            expected_machine: x86_64
           - runner: ubuntu-24.04
-            expected_arch: x64
+            expected_machine: x86_64
           - runner: ubuntu-24.04-arm
-            expected_arch: arm64
+            expected_machine: aarch64
     steps:
       - name: Checkout tap repository
         uses: actions/checkout@v6
 
-      - name: Show environment
-        run: |
-          set -eux
-          uname -a
-          arch
-          sw_vers
-          brew --version
-          brew config
-
       - name: Verify runner architecture
         run: |
           set -eux
-          actual_arch="$(arch)"
-          test "$actual_arch" = "${{ matrix.expected_arch }}"
+          actual_machine="$(uname -m)"
+          test "$actual_machine" = "${{ matrix.expected_machine }}"
 
       - name: Add local tap
         run: |
