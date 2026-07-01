@@ -56,7 +56,6 @@ jobs:
       - name: Add local tap
         run: |
           set -eux
-          brew untap tooppoo/tap-catalog || true
           brew tap tooppoo/tap-catalog "$GITHUB_WORKSPACE"
           brew tap
 
