@@ -1,0 +1,91 @@
+name: Homebrew Tap CI
+
+on:
+  pull_request:
+    paths:
+      - "Formula/**"
+      - ".github/workflows/ci.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "Formula/**"
+      - ".github/workflows/ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: homebrew-tap-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  install:
+    name: Install and test (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-latest
+            expected_arch: arm64
+          - runner: macos-15-intel
+            expected_arch: i386
+
+    steps:
+      - name: Checkout tap repository
+        uses: actions/checkout@v6
+
+      - name: Show environment
+        run: |
+          set -eux
+          uname -a
+          arch
+          sw_vers
+          brew --version
+          brew config
+
+      - name: Verify runner architecture
+        run: |
+          set -eux
+          actual_arch="$(arch)"
+          test "$actual_arch" = "${{ matrix.expected_arch }}"
+
+      - name: Add local tap
+        run: |
+          set -eux
+          brew untap tooppoo/tap-catalog || true
+          brew tap tooppoo/tap-catalog "$GITHUB_WORKSPACE"
+          brew tap
+
+      - name: Inspect formula
+        run: |
+          set -eux
+          brew info --formula tooppoo/tap-catalog/git-kura
+          brew audit --strict --online --formula tooppoo/tap-catalog/git-kura
+
+      - name: Install git-kura from local tap
+        run: |
+          set -eux
+          brew install tooppoo/tap-catalog/git-kura
+
+      - name: Verify installed command
+        run: |
+          set -eux
+          which git-kura
+          git-kura --version
+          brew list git-kura
+          brew linkage git-kura || true
+
+      - name: Run formula test
+        run: |
+          set -eux
+          brew test tooppoo/tap-catalog/git-kura
+
+      - name: Uninstall git-kura
+        run: |
+          set -eux
+          brew uninstall git-kura
+          ! command -v git-kura
