@@ -58,7 +58,8 @@ jobs:
       - name: Update Formula
         run: |
           set -eux
-          ruby scripts/update-git-kura-formula.rb \
+
+          ruby scripts/git-kura/version-update.rb \
             "${{ steps.version.outputs.version }}" \
             checksums.txt
 
