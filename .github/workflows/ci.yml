@@ -21,7 +21,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  install:
+  mac-install:
     name: Install and test (${{ matrix.runner }})
     runs-on: ${{ matrix.runner }}
 
@@ -33,10 +33,6 @@ jobs:
             expected_machine: arm64
           - runner: macos-15-intel
             expected_machine: x86_64
-          - runner: ubuntu-24.04
-            expected_machine: x86_64
-          - runner: ubuntu-24.04-arm
-            expected_machine: aarch64
     steps:
       - name: Checkout tap repository
         uses: actions/checkout@v6
@@ -83,7 +79,84 @@ jobs:
           brew uninstall git-kura
           ! command -v git-kura
 
-  smoke-test:
+  linux-install:
+    name: Install and test (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            expected_machine: x86_64
+          - runner: ubuntu-24.04-arm
+            expected_machine: aarch64
+    steps:
+      - name: Checkout tap repository
+        uses: actions/checkout@v6
+
+      - name: Verify runner architecture
+        run: |
+          set -eux
+          actual_machine="$(uname -m)"
+          test "$actual_machine" = "${{ matrix.expected_machine }}"
+
+      - name: Install Homebrew on Linux
+        run: |
+          set -eux
+          sudo apt-get update
+          sudo apt-get install -y build-essential procps curl file git
+          NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          brew --version
+          brew config
+
+      - name: Configure Homebrew environment
+        run: |
+          set -eux
+          echo "/home/linuxbrew/.linuxbrew/bin" >> "$GITHUB_PATH"
+          echo "/home/linuxbrew/.linuxbrew/sbin" >> "$GITHUB_PATH"
+          echo "HOMEBREW_PREFIX=/home/linuxbrew/.linuxbrew" >> "$GITHUB_ENV"
+          echo "HOMEBREW_CELLAR=/home/linuxbrew/.linuxbrew/Cellar" >> "$GITHUB_ENV"
+          echo "HOMEBREW_REPOSITORY=/home/linuxbrew/.linuxbrew/Homebrew" >> "$GITHUB_ENV"
+
+      - name: Add local tap
+        run: |
+          set -eux
+          brew tap tooppoo/tap-catalog "$GITHUB_WORKSPACE"
+          brew tap
+
+      - name: Inspect formula
+        run: |
+          set -eux
+          brew info --formula tooppoo/tap-catalog/git-kura
+          brew audit --strict --online --formula tooppoo/tap-catalog/git-kura
+
+      - name: Install git-kura from local tap
+        run: |
+          set -eux
+          brew install tooppoo/tap-catalog/git-kura
+
+      - name: Verify installed command
+        run: |
+          set -eux
+          which git-kura
+          git-kura --version
+          brew list git-kura
+          brew linkage git-kura || true
+
+      - name: Run formula test
+        run: |
+          set -eux
+          brew test tooppoo/tap-catalog/git-kura
+
+      - name: Uninstall git-kura
+        run: |
+          set -eux
+          brew uninstall git-kura
+          ! command -v git-kura
+
+  remote-tap-smoke:
     runs-on: macos-latest
     steps:
       - run: brew tap tooppoo/tap-catalog
