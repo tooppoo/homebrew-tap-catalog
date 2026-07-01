@@ -7,6 +7,6 @@
 ## Usage
 
 ```sh
-brew tap tooppoo/tap-catalog https://github.com/tooppoo/homebrew-tap-catalog
+brew tap tooppoo/tap-catalog
 brew install tooppoo/tap-catalog/git-kura
 ```
