@@ -1,16 +1,16 @@
-name: Homebrew Tap CI
+name: git-kura CI
 
 on:
   pull_request:
     paths:
-      - "Formula/**"
-      - ".github/workflows/ci.yml"
+      - "Formula/git-kura.rb"
+      - ".github/workflows/ci-git-kura.yml"
   push:
     branches:
       - main
     paths:
-      - "Formula/**"
-      - ".github/workflows/ci.yml"
+      - "Formula/git-kura.rb"
+      - ".github/workflows/ci-git-kura.yml"
   workflow_dispatch:
 
 permissions:
@@ -169,6 +169,10 @@ jobs:
   remote-tap-smoke:
     runs-on: macos-latest
     steps:
+      - name: Remove unrelated preinstalled taps
+        run: |
+          set -eux
+          brew untap aws/tap || true
       - run: brew tap tooppoo/tap-catalog
       - run: brew install tooppoo/tap-catalog/git-kura
       - run: git-kura --version
