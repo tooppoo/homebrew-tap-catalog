@@ -4,8 +4,6 @@ class GitKura < Formula
   version "0.1.2"
   license "Apache-2.0"
 
-  depends_on :macos
-
   on_macos do
     on_arm do
       url "https://github.com/tooppoo/git-kura/releases/download/v#{version}/git-kura_v#{version}_Darwin_arm64.tar.gz"
@@ -15,6 +13,18 @@ class GitKura < Formula
     on_intel do
       url "https://github.com/tooppoo/git-kura/releases/download/v#{version}/git-kura_v#{version}_Darwin_x86_64.tar.gz"
       sha256 "21acd2c3f729831f5ea18fdca1b9f725beacc94df896ebfb9b7af81ec8e6fa7f"
+    end
+  end
+
+  on_linux do
+    on_arm do
+      url "https://github.com/tooppoo/git-kura/releases/download/v#{version}/git-kura_v#{version}_Linux_arm64.tar.gz"
+      sha256 "0aaa1b54769631cd90eb53551a1b487450b72973b68cfa28debf4369cb3da212"
+    end
+  
+    on_intel do
+      url "https://github.com/tooppoo/git-kura/releases/download/v#{version}/git-kura_v#{version}_Linux_x86_64.tar.gz"
+      sha256 "aa227eba50bb31d269bd9f49b5f58eea0e43b42e71a2bfe6de00a31abf8c0906"
     end
   end
 
