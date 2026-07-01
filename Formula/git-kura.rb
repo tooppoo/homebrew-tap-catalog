@@ -21,7 +21,7 @@ class GitKura < Formula
       url "https://github.com/tooppoo/git-kura/releases/download/v#{version}/git-kura_v#{version}_Linux_arm64.tar.gz"
       sha256 "0aaa1b54769631cd90eb53551a1b487450b72973b68cfa28debf4369cb3da212"
     end
-  
+
     on_intel do
       url "https://github.com/tooppoo/git-kura/releases/download/v#{version}/git-kura_v#{version}_Linux_x86_64.tar.gz"
       sha256 "aa227eba50bb31d269bd9f49b5f58eea0e43b42e71a2bfe6de00a31abf8c0906"
