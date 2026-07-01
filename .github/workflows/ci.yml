@@ -33,7 +33,10 @@ jobs:
             expected_arch: arm64
           - runner: macos-15-intel
             expected_arch: i386
-
+          - runner: ubuntu-24.04
+            expected_arch: x64
+          - runner: ubuntu-24.04-arm
+            expected_arch: arm64
     steps:
       - name: Checkout tap repository
         uses: actions/checkout@v6
