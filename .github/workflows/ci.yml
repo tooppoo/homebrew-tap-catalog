@@ -43,6 +43,11 @@ jobs:
           actual_machine="$(uname -m)"
           test "$actual_machine" = "${{ matrix.expected_machine }}"
 
+      - name: Remove unrelated preinstalled taps
+        run: |
+          set -eux
+          brew untap aws/tap || true
+
       - name: Add local tap
         run: |
           set -eux
@@ -119,6 +124,11 @@ jobs:
           echo "HOMEBREW_PREFIX=/home/linuxbrew/.linuxbrew" >> "$GITHUB_ENV"
           echo "HOMEBREW_CELLAR=/home/linuxbrew/.linuxbrew/Cellar" >> "$GITHUB_ENV"
           echo "HOMEBREW_REPOSITORY=/home/linuxbrew/.linuxbrew/Homebrew" >> "$GITHUB_ENV"
+
+      - name: Remove unrelated preinstalled taps
+        run: |
+          set -eux
+          brew untap aws/tap || true
 
       - name: Add local tap
         run: |
