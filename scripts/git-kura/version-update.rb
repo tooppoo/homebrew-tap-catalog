@@ -68,13 +68,13 @@ def sha256_for!(checksums, filename)
   sha
 end
 
-def formula_filename(filename_template)
-  filename_template.sub("%<version>s", '#{version}')
+def formula_filename(version, filename_template)
+  filename_template.sub("%<version>s", version)
 end
 
-def formula_url(filename_template)
-  filename = formula_filename(filename_template)
-  "#{GIT_KURA_REPO_URL}/releases/download/v\#{version}/#{filename}"
+def formula_url(version, filename_template)
+  filename = formula_filename(version, filename_template)
+  "#{GIT_KURA_REPO_URL}/releases/download/v#{version}/#{filename}"
 end
 
 def resolved_url(version, filename)
@@ -88,7 +88,7 @@ def build_assets(version, checksums)
     definition.merge(
       filename: filename,
       resolved_url: resolved_url(version, filename),
-      formula_url: formula_url(definition.fetch(:filename_template)),
+      formula_url: formula_url(version, definition.fetch(:filename_template)),
       sha256: sha256_for!(checksums, filename)
     )
   end
@@ -114,7 +114,6 @@ def render_formula(version, assets)
     class GitKura < Formula
       desc "Conflict-aware keyed worktree coordinator for Git"
       homepage "#{GIT_KURA_REPO_URL}"
-      version "#{version}"
       license "Apache-2.0"
 
       on_macos do
