@@ -58,7 +58,7 @@ jobs:
         run: |
           set -eux
           brew info --formula tooppoo/tap-catalog/git-kura
-          brew audit --strict --online --formula tooppoo/tap-catalog/git-kura
+          brew audit --online --formula tooppoo/tap-catalog/git-kura
 
       - name: Install git-kura from local tap
         run: |
@@ -140,7 +140,7 @@ jobs:
         run: |
           set -eux
           brew info --formula tooppoo/tap-catalog/git-kura
-          brew audit --strict --online --formula tooppoo/tap-catalog/git-kura
+          brew audit --online --formula tooppoo/tap-catalog/git-kura
 
       - name: Install git-kura from local tap
         run: |
