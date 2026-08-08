@@ -72,13 +72,13 @@ def formula_filename(version, filename_template)
   filename_template.sub("%<version>s", version)
 end
 
-def formula_url(version, filename_template)
-  filename = formula_filename(version, filename_template)
-  "#{GIT_KURA_REPO_URL}/releases/download/v#{version}/#{filename}"
+def formula_url(filename_template)
+  filename = formula_filename(filename_template)
+  "#{GIT_KURA_REPO_URL}/releases/download/v\#{version}/#{filename}"
 end
 
-def resolved_url(version, filename)
-  "#{GIT_KURA_REPO_URL}/releases/download/v#{version}/#{filename}"
+def resolved_url(filename)
+  "#{GIT_KURA_REPO_URL}/releases/download/v\#{version}/#{filename}"
 end
 
 def build_assets(version, checksums)
@@ -87,7 +87,7 @@ def build_assets(version, checksums)
 
     definition.merge(
       filename: filename,
-      resolved_url: resolved_url(version, filename),
+      resolved_url: resolved_url(filename),
       formula_url: formula_url(version, definition.fetch(:filename_template)),
       sha256: sha256_for!(checksums, filename)
     )
