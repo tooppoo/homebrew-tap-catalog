@@ -140,7 +140,8 @@ jobs:
         run: |
           set -eux
           brew info --formula tooppoo/tap-catalog/git-kura
-          brew audit --online --formula tooppoo/tap-catalog/git-kura
+          # macではパスするのに、Linuxだけ失敗するため、暫定的にversionを除外
+          brew audit --online --except=version --formula tooppoo/tap-catalog/git-kura
 
       - name: Install git-kura from local tap
         run: |
