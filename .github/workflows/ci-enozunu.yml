@@ -1,17 +1,17 @@
-name: git-kura CI
+name: enozunu CI
 
 on:
   pull_request:
     paths:
-      - "Formula/git-kura.rb"
-      - ".github/workflows/ci-git-kura.yml"
+      - "Formula/enozunu.rb"
+      - ".github/workflows/ci-enozunu.yml"
       - ".github/workflows/reusable-formula-ci.yml"
   push:
     branches:
       - main
     paths:
-      - "Formula/git-kura.rb"
-      - ".github/workflows/ci-git-kura.yml"
+      - "Formula/enozunu.rb"
+      - ".github/workflows/ci-enozunu.yml"
       - ".github/workflows/reusable-formula-ci.yml"
   workflow_dispatch:
 
@@ -28,4 +28,7 @@ jobs:
     permissions:
       contents: read
     with:
-      formula: git-kura
+      formula: enozunu
+      # Flip to true (or drop this line) once Formula/enozunu.rb is on main —
+      # the published tap cannot serve it before then.
+      remote_smoke_on_pull_request: false
