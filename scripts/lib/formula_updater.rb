@@ -10,6 +10,12 @@
 class FormulaUpdater
   VERSION_PATTERN = /\A\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?\z/
   SHA256_PATTERN = /\A[0-9a-f]{64}\z/
+  # Homebrew formula naming, which also has to be safe inside the interpolated
+  # shell_output string in the generated test block.
+  NAME_PATTERN = /\A[a-z0-9][a-z0-9+._-]*\z/
+  # A double quote or backslash would terminate or escape its way out of the
+  # double-quoted Ruby literal we emit.
+  UNSAFE_LITERAL_PATTERN = /["\\]/
 
   # Placeholder used by the caller-supplied templates.
   VERSION_PLACEHOLDER = "%<version>s"
@@ -45,6 +51,8 @@ class FormulaUpdater
       usage
       exit 1
     end
+
+    validate_config!
 
     version = normalize_version(argv.fetch(0))
     checksums_path = argv.fetch(1)
@@ -82,6 +90,61 @@ class FormulaUpdater
   def usage
     warn "usage: ruby #{$PROGRAM_NAME} <version> <checksums.txt>"
     warn "example: ruby #{$PROGRAM_NAME} 1.2.3 checksums.txt"
+  end
+
+  # Checks the caller-supplied declaration before any work happens, so a
+  # misconfigured scripts/<formula>/version-update.rb fails loudly instead of
+  # silently emitting a formula built from the wrong asset.
+  def validate_config!
+    abort_with("invalid formula name: #{@name}") unless @name.match?(NAME_PATTERN)
+
+    # These end up inside url strings that must keep their live #{version}
+    # interpolation, so they cannot be escaped away -- reject them instead.
+    {
+      "repo_url" => @repo_url,
+      "tag_template" => @tag_template
+    }.each do |label, value|
+      abort_with("#{label} must not contain a quote or backslash: #{value}") if value.match?(UNSAFE_LITERAL_PATTERN)
+    end
+
+    @assets.each do |definition|
+      template = definition.fetch(:filename_template)
+      next unless template.match?(UNSAFE_LITERAL_PATTERN)
+
+      abort_with("filename_template for #{definition.fetch(:key)} must not contain a quote or backslash: #{template}")
+    end
+
+    validate_asset_coverage!
+  end
+
+  # asset_for! returns the first match, so duplicates would quietly shadow each
+  # other and pin the wrong url/sha256. Require exactly one entry per target.
+  def validate_asset_coverage!
+    duplicate_keys = duplicates(@assets.map { |definition| definition.fetch(:key) })
+    abort_with("duplicate asset keys: #{duplicate_keys.join(", ")}") unless duplicate_keys.empty?
+
+    declared = @assets.map { |definition| [definition.fetch(:os), definition.fetch(:arch)] }
+
+    duplicate_targets = duplicates(declared)
+    unless duplicate_targets.empty?
+      abort_with("duplicate asset targets: #{format_targets(duplicate_targets)}")
+    end
+
+    expected = TARGETS.map { |target| [target.fetch(:os), target.fetch(:arch)] }
+
+    missing = expected - declared
+    abort_with("missing asset definitions for: #{format_targets(missing)}") unless missing.empty?
+
+    unexpected = declared - expected
+    abort_with("unexpected asset definitions for: #{format_targets(unexpected)}") unless unexpected.empty?
+  end
+
+  def duplicates(values)
+    values.tally.select { |_, count| count > 1 }.keys
+  end
+
+  def format_targets(targets)
+    targets.map { |os, arch| "#{os}/#{arch}" }.join(", ")
   end
 
   def normalize_version(raw_version)
@@ -158,12 +221,15 @@ class FormulaUpdater
     linux_arm = asset_for!(assets, os: :linux, arch: :arm)
     linux_intel = asset_for!(assets, os: :linux, arch: :intel)
 
+    # Pure literals go through Ruby's own escaping. The url lines below cannot,
+    # since they must keep their #{version} interpolation live in the formula;
+    # validate_config! rejects the characters that would break them instead.
     <<~RUBY
       class #{formula_class} < Formula
-        desc "#{@desc}"
-        homepage "#{@repo_url}"
-        version "#{version}"
-        license "#{@license}"
+        desc #{@desc.inspect}
+        homepage #{@repo_url.inspect}
+        version #{version.inspect}
+        license #{@license.inspect}
 
         on_macos do
           on_arm do
@@ -190,7 +256,7 @@ class FormulaUpdater
         end
 
         def install
-          bin.install "#{@name}"
+          bin.install #{@name.inspect}
 
           pkgshare.install "README.md" if File.exist?("README.md")
           pkgshare.install "LICENSE" if File.exist?("LICENSE")
@@ -205,17 +271,9 @@ class FormulaUpdater
     RUBY
   end
 
+  # Coverage and uniqueness are already settled by validate_config!; this only
+  # checks the values materialized from checksums.txt.
   def validate_assets!(assets)
-    keys = assets.map { |asset| asset.fetch(:key) }
-
-    @assets.each do |definition|
-      key = definition.fetch(:key)
-      abort_with("missing materialized asset: #{key}") unless keys.include?(key)
-    end
-
-    TARGETS.each do |target|
-      asset_for!(assets, **target)
-    end
 
     assets.each do |asset|
       abort_with("missing filename for #{asset.fetch(:key)}") if asset.fetch(:filename).empty?
