@@ -29,6 +29,3 @@ jobs:
       contents: read
     with:
       formula: enozunu
-      # Flip to true (or drop this line) once Formula/enozunu.rb is on main —
-      # the published tap cannot serve it before then.
-      remote_smoke_on_pull_request: false
