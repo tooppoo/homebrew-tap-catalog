@@ -5,12 +5,14 @@ on:
     paths:
       - "Formula/git-kura.rb"
       - ".github/workflows/ci-git-kura.yml"
+      - ".github/workflows/reusable-formula-ci.yml"
   push:
     branches:
       - main
     paths:
       - "Formula/git-kura.rb"
       - ".github/workflows/ci-git-kura.yml"
+      - ".github/workflows/reusable-formula-ci.yml"
   workflow_dispatch:
 
 permissions:
@@ -21,161 +23,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  mac-install:
-    name: Install and test (${{ matrix.runner }})
-    runs-on: ${{ matrix.runner }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - runner: macos-latest
-            expected_machine: arm64
-          - runner: macos-15-intel
-            expected_machine: x86_64
-    steps:
-      - name: Checkout tap repository
-        uses: actions/checkout@v6
-
-      - name: Verify runner architecture
-        run: |
-          set -eux
-          actual_machine="$(uname -m)"
-          test "$actual_machine" = "${{ matrix.expected_machine }}"
-
-      - name: Remove unrelated preinstalled taps
-        run: |
-          set -eux
-          brew untap aws/tap || true
-
-      - name: Add local tap
-        run: |
-          set -eux
-          brew tap tooppoo/tap-catalog "$GITHUB_WORKSPACE"
-          brew tap
-
-      - name: Inspect formula
-        run: |
-          set -eux
-          brew info --formula tooppoo/tap-catalog/git-kura
-          brew audit --online --formula tooppoo/tap-catalog/git-kura
-
-      - name: Install git-kura from local tap
-        run: |
-          set -eux
-          brew install tooppoo/tap-catalog/git-kura
-
-      - name: Verify installed command
-        run: |
-          set -eux
-          which git-kura
-          git-kura --version
-          brew list git-kura
-          brew linkage git-kura || true
-
-      - name: Run formula test
-        run: |
-          set -eux
-          brew test tooppoo/tap-catalog/git-kura
-
-      - name: Uninstall git-kura
-        run: |
-          set -eux
-          brew uninstall git-kura
-          ! command -v git-kura
-
-  linux-install:
-    name: Install and test (${{ matrix.runner }})
-    runs-on: ${{ matrix.runner }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - runner: ubuntu-24.04
-            expected_machine: x86_64
-          - runner: ubuntu-24.04-arm
-            expected_machine: aarch64
-    steps:
-      - name: Checkout tap repository
-        uses: actions/checkout@v6
-
-      - name: Verify runner architecture
-        run: |
-          set -eux
-          actual_machine="$(uname -m)"
-          test "$actual_machine" = "${{ matrix.expected_machine }}"
-
-      - name: Install Homebrew on Linux
-        run: |
-          set -eux
-          sudo apt-get update
-          sudo apt-get install -y build-essential procps curl file git
-          NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-          brew --version
-          brew config
-
-      - name: Configure Homebrew environment
-        run: |
-          set -eux
-          echo "/home/linuxbrew/.linuxbrew/bin" >> "$GITHUB_PATH"
-          echo "/home/linuxbrew/.linuxbrew/sbin" >> "$GITHUB_PATH"
-          echo "HOMEBREW_PREFIX=/home/linuxbrew/.linuxbrew" >> "$GITHUB_ENV"
-          echo "HOMEBREW_CELLAR=/home/linuxbrew/.linuxbrew/Cellar" >> "$GITHUB_ENV"
-          echo "HOMEBREW_REPOSITORY=/home/linuxbrew/.linuxbrew/Homebrew" >> "$GITHUB_ENV"
-
-      - name: Remove unrelated preinstalled taps
-        run: |
-          set -eux
-          brew untap aws/tap || true
-
-      - name: Add local tap
-        run: |
-          set -eux
-          brew tap tooppoo/tap-catalog "$GITHUB_WORKSPACE"
-          brew tap
-
-      - name: Inspect formula
-        run: |
-          set -eux
-          brew info --formula tooppoo/tap-catalog/git-kura
-          # macではパスするのに、Linuxだけ失敗するため、暫定的にversionを除外
-          brew audit --online --except=version --formula tooppoo/tap-catalog/git-kura
-
-      - name: Install git-kura from local tap
-        run: |
-          set -eux
-          brew install tooppoo/tap-catalog/git-kura
-
-      - name: Verify installed command
-        run: |
-          set -eux
-          which git-kura
-          git-kura --version
-          brew list git-kura
-          brew linkage git-kura || true
-
-      - name: Run formula test
-        run: |
-          set -eux
-          brew test tooppoo/tap-catalog/git-kura
-
-      - name: Uninstall git-kura
-        run: |
-          set -eux
-          brew uninstall git-kura
-          ! command -v git-kura
-
-  remote-tap-smoke:
-    runs-on: macos-latest
-    steps:
-      - name: Remove unrelated preinstalled taps
-        run: |
-          set -eux
-          brew untap aws/tap || true
-      - run: brew tap tooppoo/tap-catalog
-      - run: brew install tooppoo/tap-catalog/git-kura
-      - run: git-kura --version
-      - run: brew test tooppoo/tap-catalog/git-kura
-      - run: brew uninstall git-kura
+  ci:
+    uses: ./.github/workflows/reusable-formula-ci.yml
+    permissions:
+      contents: read
+    with:
+      formula: git-kura

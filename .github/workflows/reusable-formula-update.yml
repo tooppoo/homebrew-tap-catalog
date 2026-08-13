@@ -1,0 +1,113 @@
+name: Formula Update
+
+# Shared "bump a formula to an upstream release" pipeline.
+# Callers: .github/workflows/update-<formula>.yml
+
+on:
+  workflow_call:
+    inputs:
+      formula:
+        description: "Formula name, e.g. git-kura"
+        required: true
+        type: string
+      repository:
+        description: "Upstream repository publishing the release, e.g. tooppoo/git-kura"
+        required: true
+        type: string
+      version:
+        description: "Version to publish, with or without a leading v"
+        required: true
+        type: string
+      tag_prefix:
+        description: >-
+          Prefix the upstream repository puts in front of the version in its
+          release tags. "v" for v1.2.3 tags, "" for bare 1.2.3 tags.
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    runs-on: ubuntu-24.04
+
+    env:
+      FORMULA: ${{ inputs.formula }}
+      REPOSITORY: ${{ inputs.repository }}
+      TAG_PREFIX: ${{ inputs.tag_prefix }}
+      RAW_VERSION: ${{ inputs.version }}
+
+    steps:
+      - name: Checkout tap repository
+        uses: actions/checkout@v6
+
+      - name: Normalize version
+        id: version
+        run: |
+          set -eu
+          version="${RAW_VERSION#v}"
+
+          case "$version" in
+            [0-9]*.[0-9]*.[0-9]*)
+              ;;
+            *)
+              echo "invalid version: $version" >&2
+              exit 1
+              ;;
+          esac
+
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG_PREFIX}${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Fetch checksums.txt
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -eux
+          curl -fsSL \
+            "https://github.com/${REPOSITORY}/releases/download/${TAG}/checksums.txt" \
+            -o checksums.txt
+
+      - name: Update Formula
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -eux
+          # The updater aborts if any expected asset is missing from checksums.txt.
+          ruby "scripts/${FORMULA}/version-update.rb" "${VERSION}" checksums.txt
+
+      - name: Show diff
+        run: |
+          set -eux
+          git diff -- "Formula/${FORMULA}.rb"
+
+      - name: Create pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -eux
+
+          if git diff --quiet -- "Formula/${FORMULA}.rb"; then
+            echo "Formula/${FORMULA}.rb is already up to date for v${VERSION}."
+            exit 0
+          fi
+
+          branch="update/${FORMULA}-v${VERSION}-${GITHUB_RUN_ID}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git checkout -b "${branch}"
+          git add "Formula/${FORMULA}.rb"
+          git commit -m "Update ${FORMULA} formula to v${VERSION}"
+          git push origin "${branch}"
+
+          gh pr create \
+            --title "Update ${FORMULA} formula to v${VERSION}" \
+            --body "Update ${FORMULA} Homebrew formula to v${VERSION} using checksums.txt from the ${FORMULA} release." \
+            --base main \
+            --head "${branch}"

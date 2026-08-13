@@ -1,0 +1,149 @@
+name: Formula CI
+
+# Shared install/audit/test matrix for every formula in this tap.
+# Callers: .github/workflows/ci-<formula>.yml
+
+on:
+  workflow_call:
+    inputs:
+      formula:
+        description: "Formula name, which is also the installed command name"
+        required: true
+        type: string
+      remote_smoke_on_pull_request:
+        description: >-
+          Run the published-tap smoke test on pull requests. Must stay false
+          until the formula has landed on main, since the remote tap only
+          serves formulae that are already there.
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  install:
+    name: Install and test (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-latest
+            expected_machine: arm64
+            audit_except: ""
+          - runner: macos-15-intel
+            expected_machine: x86_64
+            audit_except: ""
+          # macではパスするのに、Linuxだけ失敗するため、暫定的にversionを除外
+          - runner: ubuntu-24.04
+            expected_machine: x86_64
+            audit_except: "version"
+          - runner: ubuntu-24.04-arm
+            expected_machine: aarch64
+            audit_except: "version"
+
+    env:
+      FORMULA: ${{ inputs.formula }}
+      AUDIT_EXCEPT: ${{ matrix.audit_except }}
+
+    steps:
+      - name: Checkout tap repository
+        uses: actions/checkout@v6
+
+      - name: Verify runner architecture
+        run: |
+          set -eux
+          actual_machine="$(uname -m)"
+          test "$actual_machine" = "${{ matrix.expected_machine }}"
+
+      - name: Install Homebrew on Linux
+        if: runner.os == 'Linux'
+        run: |
+          set -eux
+          sudo apt-get update
+          sudo apt-get install -y build-essential procps curl file git
+          NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          brew --version
+          brew config
+
+      - name: Configure Homebrew environment on Linux
+        if: runner.os == 'Linux'
+        run: |
+          set -eux
+          echo "/home/linuxbrew/.linuxbrew/bin" >> "$GITHUB_PATH"
+          echo "/home/linuxbrew/.linuxbrew/sbin" >> "$GITHUB_PATH"
+          echo "HOMEBREW_PREFIX=/home/linuxbrew/.linuxbrew" >> "$GITHUB_ENV"
+          echo "HOMEBREW_CELLAR=/home/linuxbrew/.linuxbrew/Cellar" >> "$GITHUB_ENV"
+          echo "HOMEBREW_REPOSITORY=/home/linuxbrew/.linuxbrew/Homebrew" >> "$GITHUB_ENV"
+
+      - name: Remove unrelated preinstalled taps
+        run: |
+          set -eux
+          brew untap aws/tap || true
+
+      - name: Add local tap
+        run: |
+          set -eux
+          brew tap tooppoo/tap-catalog "$GITHUB_WORKSPACE"
+          brew tap
+
+      - name: Inspect formula
+        run: |
+          set -eux
+          brew info --formula "tooppoo/tap-catalog/${FORMULA}"
+
+          if [ -n "${AUDIT_EXCEPT}" ]; then
+            brew audit --online "--except=${AUDIT_EXCEPT}" --formula "tooppoo/tap-catalog/${FORMULA}"
+          else
+            brew audit --online --formula "tooppoo/tap-catalog/${FORMULA}"
+          fi
+
+      - name: Install from local tap
+        run: |
+          set -eux
+          brew install "tooppoo/tap-catalog/${FORMULA}"
+
+      - name: Verify installed command
+        run: |
+          set -eux
+          which "${FORMULA}"
+          "${FORMULA}" --version
+          brew list "${FORMULA}"
+          brew linkage "${FORMULA}" || true
+
+      - name: Run formula test
+        run: |
+          set -eux
+          brew test "tooppoo/tap-catalog/${FORMULA}"
+
+      - name: Uninstall
+        run: |
+          set -eux
+          brew uninstall "${FORMULA}"
+          ! command -v "${FORMULA}"
+
+  remote-tap-smoke:
+    name: Smoke test published tap
+    if: inputs.remote_smoke_on_pull_request || github.event_name != 'pull_request'
+    runs-on: macos-latest
+
+    env:
+      FORMULA: ${{ inputs.formula }}
+
+    steps:
+      - name: Remove unrelated preinstalled taps
+        run: |
+          set -eux
+          brew untap aws/tap || true
+      - name: Install and test from the published tap
+        run: |
+          set -eux
+          brew tap tooppoo/tap-catalog
+          brew install "tooppoo/tap-catalog/${FORMULA}"
+          "${FORMULA}" --version
+          brew test "tooppoo/tap-catalog/${FORMULA}"
+          brew uninstall "${FORMULA}"
