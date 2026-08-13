@@ -8,7 +8,6 @@
 ## Usage
 
 ```sh
-brew tap tooppoo/tap-catalog
 brew install tooppoo/tap-catalog/git-kura
 brew install tooppoo/tap-catalog/enozunu
 ```
