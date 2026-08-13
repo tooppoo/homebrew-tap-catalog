@@ -1,0 +1,34 @@
+name: enozunu CI
+
+on:
+  pull_request:
+    paths:
+      - "Formula/enozunu.rb"
+      - ".github/workflows/ci-enozunu.yml"
+      - ".github/workflows/reusable-formula-ci.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "Formula/enozunu.rb"
+      - ".github/workflows/ci-enozunu.yml"
+      - ".github/workflows/reusable-formula-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: homebrew-tap-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    uses: ./.github/workflows/reusable-formula-ci.yml
+    permissions:
+      contents: read
+    with:
+      formula: enozunu
+      # Flip to true (or drop this line) once Formula/enozunu.rb is on main —
+      # the published tap cannot serve it before then.
+      remote_smoke_on_pull_request: false
