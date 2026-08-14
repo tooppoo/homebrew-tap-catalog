@@ -1,0 +1,26 @@
+name: Update reportage Formula
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "reportage version to publish, e.g. 0.0.8"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    uses: ./.github/workflows/reusable-formula-update.yml
+    permissions:
+      contents: write
+      pull-requests: write
+    with:
+      formula: reportage
+      repository: tooppoo/reportage
+      version: ${{ inputs.version }}
+      # reportage tags its releases without a leading "v".
+      tag_prefix: ""
