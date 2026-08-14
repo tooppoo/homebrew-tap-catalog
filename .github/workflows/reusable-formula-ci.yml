@@ -97,9 +97,9 @@ jobs:
           brew info --formula "tooppoo/tap-catalog/${FORMULA}"
 
           if [ -n "${AUDIT_EXCEPT}" ]; then
-            brew audit --online "--except=${AUDIT_EXCEPT}" --formula "tooppoo/tap-catalog/${FORMULA}"
+            brew audit --online --strict "--except=${AUDIT_EXCEPT}" --formula "tooppoo/tap-catalog/${FORMULA}"
           else
-            brew audit --online --formula "tooppoo/tap-catalog/${FORMULA}"
+            brew audit --online --strict --formula "tooppoo/tap-catalog/${FORMULA}"
           fi
 
       - name: Install from local tap
