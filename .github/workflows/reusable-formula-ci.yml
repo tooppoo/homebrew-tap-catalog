@@ -96,11 +96,6 @@ jobs:
           set -eux
           brew info --formula "tooppoo/tap-catalog/${FORMULA}"
 
-          # --new は使わない。--strict を含む上位互換に見えるが、
-          # homebrew-core への新規収録審査用のチェックが追加される。
-          # そのうち notability 判定は core tap でガードされておらずサードパーティ tap にも適用され、
-          # fork / watcher / star が「すべて」閾値 (30 / 30 / 75、自己申請ではその 3 倍) を
-          # 下回ると失敗する。本 tap の formula は個人リポジトリを指すため恒常的に落ちる。
           if [ -n "${AUDIT_EXCEPT}" ]; then
             brew audit --online --strict "--except=${AUDIT_EXCEPT}" --formula "tooppoo/tap-catalog/${FORMULA}"
           else
