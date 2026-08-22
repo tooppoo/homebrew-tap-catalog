@@ -9,6 +9,7 @@
   ],
   "waitFor": "postCreateCommand",
   "features": {
+    "ghcr.io/meaningful-ooo/devcontainer-features/homebrew:2": {},
     "ghcr.io/devcontainers/features/github-cli:1": {},
     "ghcr.io/tooppoo/catalog-devcontainer-features/git-kura:0": {},
     "ghcr.io/tooppoo/catalog-devcontainer-features/rellog:0": {},
@@ -22,6 +23,10 @@
     },
     "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
   },
+  "postCreateCommand": [
+    "sh",
+    "scripts/setup-dev.sh"
+  ],
   "customizations": {
     "vscode": {
       "extensions": [

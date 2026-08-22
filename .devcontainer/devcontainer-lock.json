@@ -20,6 +20,11 @@
       "resolved": "ghcr.io/devcontainers/features/ruby@sha256:31b07475acf72a649c2f323d2ab5c15e1a0c286e7495be822b0850e240a9b5b7",
       "integrity": "sha256:31b07475acf72a649c2f323d2ab5c15e1a0c286e7495be822b0850e240a9b5b7"
     },
+    "ghcr.io/meaningful-ooo/devcontainer-features/homebrew:2": {
+      "version": "2.0.5",
+      "resolved": "ghcr.io/meaningful-ooo/devcontainer-features/homebrew@sha256:c49ba0f6275bdd0474f4c7fcf37fc84b5739838b110c7da9c16d6a409ae48a86",
+      "integrity": "sha256:c49ba0f6275bdd0474f4c7fcf37fc84b5739838b110c7da9c16d6a409ae48a86"
+    },
     "ghcr.io/tooppoo/catalog-devcontainer-features/enozunu:0": {
       "version": "0.1.0",
       "resolved": "ghcr.io/tooppoo/catalog-devcontainer-features/enozunu@sha256:d3de577abcb67df66c9842558c46b68710d59320c6e74e1ae1d9eab4549e03cb",
