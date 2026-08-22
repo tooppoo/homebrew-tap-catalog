@@ -22,6 +22,18 @@ class FormulaUpdater
   # Emitted verbatim into the formula so Homebrew interpolates `version` itself.
   FORMULA_VERSION_REF = '#{version}'
 
+  # Anchors into an already-rendered formula, used when the superseded release is
+  # rewritten into its archived copy. render_formula always emits both lines.
+  FORMULA_VERSION_LINE = /^  version "([^"]+)"$/
+  FORMULA_LICENSE_LINE = /^  license "[^"]*"$/
+  # Without this the archived release would steal bin/<name> from the current one
+  # whenever both are installed. Homebrew still auto-links it when the current
+  # release is absent, so pinning an old version stays a single brew install.
+  KEG_ONLY_LINE = "  keg_only :versioned_formula"
+  # Semver ignores build metadata when ordering releases, and Gem::Version rejects
+  # the "+" outright, so it is dropped before any comparison.
+  BUILD_METADATA_PATTERN = /\+.*\z/
+
   TARGETS = [
     { os: :macos, arch: :arm },
     { os: :macos, arch: :intel },
@@ -66,9 +78,12 @@ class FormulaUpdater
     formula = render_formula(version, assets)
     validate_formula!(formula, version, assets)
 
+    # Must run before formula_path is overwritten -- it archives what is still there.
+    archive = archive_current_release(version)
+
     File.write(formula_path, formula)
 
-    report(version, assets)
+    report(version, assets, archive)
   end
 
   def formula_path
@@ -271,6 +286,124 @@ class FormulaUpdater
     RUBY
   end
 
+  # Keeps the release being replaced installable as
+  # `brew install <tap>/<name>@<major.minor>`, so a bump never removes the only
+  # way to get the previous version. This is what `brew extract` would otherwise
+  # have to reconstruct from tap history.
+  #
+  # A prerelease is archived like any other release, so bumping 1.0.0-rc.1 to
+  # 1.0.0 publishes <name>@1.0 holding the release candidate until the next bump
+  # on that line replaces it. Accepted rather than special-cased: dropping it
+  # would leave the superseded release unreachable, which is what this exists to
+  # prevent.
+  #
+  # Returns nil when there was nothing to archive, otherwise a hash describing
+  # the file mutation for report.
+  def archive_current_release(version)
+    return nil unless File.file?(formula_path)
+
+    source = File.read(formula_path)
+    current = formula_version!(formula_path, source)
+
+    # Re-publishing the same version has to stay a no-op: the release workflow
+    # decides whether to open a pull request by diffing formula_path, and there
+    # is no superseded release to archive anyway.
+    return nil if current == version
+
+    if comparable_version(version) < comparable_version(current)
+      abort_with("refusing to downgrade #{formula_path} from #{current} to #{version}")
+    end
+
+    name = archive_name(current)
+    path = archive_path(name)
+    rendered = render_archive(source, name)
+    existing_source = File.file?(path) ? File.read(path) : nil
+
+    # The two writes are not atomic, so a run interrupted between them leaves the
+    # archive in place while formula_path still holds the archived release. The
+    # retry then finds its own output already written; treating that as done is
+    # what lets the retry finish instead of tripping the guard below forever.
+    return { path: path, version: current, action: "kept" } if existing_source == rendered
+
+    if existing_source
+      existing = formula_version!(path, existing_source)
+
+      if comparable_version(current) <= comparable_version(existing)
+        # Not the interrupted-run case handled above: the archive holds different
+        # content that is not older, so only a human can decide which release
+        # should survive.
+        abort_with(
+          "#{path} already holds #{existing}, which is not older than #{current}; " \
+          "delete #{path} to archive #{current} in its place"
+        )
+      end
+    end
+
+    File.write(path, rendered)
+
+    { path: path, version: current, action: existing_source ? "replaced" : "created" }
+  end
+
+  # "0.2.3" -> "git-kura@0.2", following Homebrew's one-formula-per-major.minor
+  # naming (python@3.11) so a patch bump replaces its line's archive instead of
+  # adding a file. The archive therefore holds the newest release of that line
+  # that is no longer current -- not the line's newest release, which stays in
+  # formula_path for as long as that line is the current one.
+  def archive_name(version)
+    major, minor = version.split(".").first(2)
+
+    "#{@name}@#{major}.#{minor}"
+  end
+
+  def archive_path(name)
+    "Formula/#{name}.rb"
+  end
+
+  # Mirrors Formulary.class_s. Homebrew derives the expected class name from the
+  # file name and refuses to load the formula when they disagree, so
+  # "git-kura@0.2" has to become "GitKuraAT02". Note that the separators are
+  # dropped, which is why @1.10 and @11.0 would share a class name -- harmless,
+  # because Homebrew loads every formula file in its own namespace.
+  def versioned_class(name)
+    class_name = name.capitalize
+    class_name = class_name.gsub(/[-_.\s]([a-zA-Z0-9])/) { Regexp.last_match(1).upcase }
+    class_name = class_name.tr("+", "x")
+
+    class_name.sub(/(.)@(\d)/, '\1AT\2')
+  end
+
+  # Rewrites an already-rendered formula in place of re-rendering it: the pinned
+  # sha256 values of the superseded release only exist in that file.
+  def render_archive(source, name)
+    declaration = "class #{formula_class} < Formula"
+
+    abort_with("#{formula_path} does not declare #{declaration}") unless source.include?(declaration)
+    abort_with("#{formula_path} has no license line to anchor #{KEG_ONLY_LINE.strip} to") unless source.match?(FORMULA_LICENSE_LINE)
+
+    source
+      .sub(declaration, "class #{versioned_class(name)} < Formula")
+      .sub(FORMULA_LICENSE_LINE) { "#{Regexp.last_match(0)}\n#{KEG_ONLY_LINE}" }
+  end
+
+  # Rejects a malformed version here rather than letting comparable_version raise
+  # a rubygems ArgumentError, which would surface as a backtrace naming neither
+  # the offending file nor the value.
+  def formula_version!(path, source)
+    match = source.match(FORMULA_VERSION_LINE)
+
+    abort_with("cannot read a version from #{path}") unless match
+
+    version = match.captures.fetch(0)
+
+    abort_with("#{path} declares an invalid version: #{version}") unless version.match?(VERSION_PATTERN)
+
+    version
+  end
+
+  def comparable_version(version)
+    Gem::Version.new(version.sub(BUILD_METADATA_PATTERN, ""))
+  end
+
   # Coverage and uniqueness are already settled by validate_config!; this only
   # checks the values materialized from checksums.txt.
   def validate_assets!(assets)
@@ -297,8 +430,13 @@ class FormulaUpdater
     end
   end
 
-  def report(version, assets)
+  def report(version, assets, archive)
     puts "updated #{formula_path} to #{@name} v#{version}"
+
+    if archive
+      puts "#{archive.fetch(:action)} #{archive.fetch(:path)} holding #{@name} v#{archive.fetch(:version)}"
+    end
+
     puts
     puts "assets:"
     assets.each do |asset|

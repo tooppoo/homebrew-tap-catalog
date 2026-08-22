@@ -82,7 +82,10 @@ jobs:
       - name: Show diff
         run: |
           set -eux
-          git diff -- "Formula/${FORMULA}.rb"
+          # The updater also writes Formula/<formula>@<major.minor>.rb, which is
+          # untracked on its first appearance and therefore invisible to git diff.
+          git status --short -- Formula/
+          git diff -- Formula/
 
       - name: Create pull request
         env:
@@ -102,7 +105,9 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           git checkout -b "${branch}"
-          git add "Formula/${FORMULA}.rb"
+          # Stage the directory, not just the bumped formula: the archived copy of
+          # the superseded release would otherwise be dropped from the pull request.
+          git add "Formula/"
           git commit -m "Update ${FORMULA} formula to v${VERSION}"
           git push origin "${branch}"
 
