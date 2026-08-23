@@ -192,12 +192,15 @@ jobs:
 
             brew info --formula "${formula}"
 
-            # Non-strict on purpose, unlike the current formula above. An
-            # archive is a frozen record of a shipped release, so a future strict
-            # style rule firing on one would have no remedy short of editing the
-            # record. What matters here -- that the pinned urls and checksums
-            # still resolve -- is covered by --online alone.
-            brew audit --online --formula "${formula}"
+            # Audited exactly like the current formula, AUDIT_EXCEPT included:
+            # the archive is a copy of a formula that passed this same audit when
+            # it was current, so any divergence here would fail for reasons that
+            # have nothing to do with the archive being an archive.
+            if [ -n "${AUDIT_EXCEPT}" ]; then
+              brew audit --online --strict "--except=${AUDIT_EXCEPT}" --formula "${formula}"
+            else
+              brew audit --online --strict --formula "${formula}"
+            fi
 
             brew install "${formula}"
 
