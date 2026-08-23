@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "Formula/git-kura.rb"
+      - "Formula/git-kura@*.rb"
       - ".github/workflows/ci-git-kura.yml"
       - ".github/workflows/reusable-formula-ci.yml"
   push:
@@ -11,6 +12,7 @@ on:
       - main
     paths:
       - "Formula/git-kura.rb"
+      - "Formula/git-kura@*.rb"
       - ".github/workflows/ci-git-kura.yml"
       - ".github/workflows/reusable-formula-ci.yml"
   workflow_dispatch:
