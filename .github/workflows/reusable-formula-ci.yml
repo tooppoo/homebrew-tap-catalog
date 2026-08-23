@@ -52,6 +52,10 @@ jobs:
     steps:
       - name: Checkout tap repository
         uses: actions/checkout@v6
+        with:
+          # Full history so the archive step can diff a pull request against its
+          # base ref to find the archives that pull request actually touches.
+          fetch-depth: 0
 
       - name: Verify runner architecture
         run: |
@@ -125,6 +129,123 @@ jobs:
           set -eux
           brew uninstall "${FORMULA}"
           ! command -v "${FORMULA}"
+
+      # Archived releases are published to the tap exactly like the current one,
+      # so `brew install <tap>/<formula>@<major.minor>` has to keep working. Their
+      # class names are rewritten by scripts/lib/formula_updater.rb to satisfy
+      # Homebrew's file-name-to-class rule, and only loading the file detects a
+      # mismatch -- brew rejects it with "Expected to find class <Class>, but only
+      # found: <Class>". Runs after the uninstall above so each archive is the
+      # only version installed, which is both the condition under which Homebrew
+      # links a keg-only versioned formula and the state a user pinning an old
+      # version is in.
+      - name: Install and test archived versions
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -eux
+
+          # A class-name mismatch is introduced by the commit that writes the
+          # archive, so a pull request only has to exercise the archives it
+          # touches. Sweeping all of them on every pull request would instead
+          # grow without bound and would turn unrelated pull requests red as soon
+          # as one old upstream release is withdrawn.
+          #
+          # Everything else sweeps every archive: push to main, manual dispatch,
+          # and any pull request touching this workflow file, since an edit
+          # anywhere in it can change how the loop runs. Two limits worth knowing:
+          # the loop is a no-op until the tap holds its first archive, and with no
+          # schedule trigger an upstream release withdrawn between bumps goes
+          # unnoticed until the next bump lands.
+          sweep=yes
+
+          if [ "${EVENT_NAME}" = "pull_request" ]; then
+            changed="$(git -C "${GITHUB_WORKSPACE}" diff --name-only "origin/${BASE_REF}...HEAD")"
+
+            case "${changed}" in
+              *.github/workflows/reusable-formula-ci.yml*) ;;
+              *) sweep=no ;;
+            esac
+          fi
+
+          if [ "${sweep}" = yes ]; then
+            # || true scopes to the unmatched glob only; a failing cd still aborts.
+            candidates="$(cd "${GITHUB_WORKSPACE}" && { ls -1 "Formula/${FORMULA}"@*.rb 2>/dev/null || true; })"
+          else
+            candidates="$(git -C "${GITHUB_WORKSPACE}" diff --name-only \
+              "origin/${BASE_REF}...HEAD" -- "Formula/${FORMULA}@*.rb")"
+          fi
+
+          found=0
+
+          # Unquoted on purpose, to split the newline-separated list. Formula
+          # names and versions cannot contain whitespace, so this is safe.
+          for name in ${candidates}; do
+            path="${GITHUB_WORKSPACE}/${name}"
+            # An archive deleted by the pull request still shows up in the diff.
+            [ -e "${path}" ] || continue
+            found=1
+
+            archive="$(basename "${path}" .rb)"
+            formula="tooppoo/tap-catalog/${archive}"
+
+            brew info --formula "${formula}"
+
+            # Audited exactly like the current formula, AUDIT_EXCEPT included:
+            # the archive is a copy of a formula that passed this same audit when
+            # it was current, so any divergence here would fail for reasons that
+            # have nothing to do with the archive being an archive.
+            if [ -n "${AUDIT_EXCEPT}" ]; then
+              brew audit --online --strict "--except=${AUDIT_EXCEPT}" --formula "${formula}"
+            else
+              brew audit --online --strict --formula "${formula}"
+            fi
+
+            brew install "${formula}"
+
+            # keg_only is the only thing stopping an archive from taking
+            # bin/<formula> from the current release, and brew audit does not
+            # enforce it outside homebrew/core -- assert it here or nothing does.
+            # Kept pipe-free so a brew info failure cannot be masked by a match.
+            info="$(brew info --formula "${formula}")"
+
+            case "${info}" in
+              *keg-only*) ;;
+              *) echo "error: ${archive} is not keg-only" >&2; exit 1 ;;
+            esac
+
+            # Installed on its own, a keg-only versioned formula is still linked,
+            # so the pinned version has to be the one on PATH.
+            command -v "${FORMULA}"
+            "${FORMULA}" --version
+            brew test "${formula}"
+
+            brew uninstall "${archive}"
+
+            # Running the command above put its path in the shell's hash table,
+            # and command -v reports a hashed path without checking that it still
+            # exists. Without this the assertion below reports a link that brew
+            # has already removed.
+            hash -r
+
+            # A leftover link would let the next iteration pass on the wrong keg.
+            # Spelled as an if rather than `! command -v`, because set -e is
+            # defined to ignore a command negated by `!`, which would silently
+            # turn this assertion into a no-op here inside the loop.
+            if command -v "${FORMULA}"; then
+              echo "error: ${archive} left ${FORMULA} on PATH after uninstall" >&2
+              exit 1
+            fi
+          done
+
+          if [ "${found}" -eq 0 ]; then
+            if [ "${sweep}" = yes ]; then
+              echo "no archived versions of ${FORMULA} in the tap"
+            else
+              echo "no archived versions of ${FORMULA} touched by this pull request"
+            fi
+          fi
 
   remote-tap-smoke:
     name: Smoke test published tap
