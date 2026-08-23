@@ -93,6 +93,7 @@ jobs:
         run: |
           set -eux
           brew tap tooppoo/tap-catalog "$GITHUB_WORKSPACE"
+          brew trust tooppoo/tap-catalog
           brew tap
 
       - name: Inspect formula
