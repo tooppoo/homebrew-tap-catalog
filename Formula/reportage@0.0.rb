@@ -1,30 +1,31 @@
-class Reportage < Formula
+class ReportageAT00 < Formula
   desc "Explicit, runtime-agnostic, coverage-aware E2E scenario runner"
   homepage "https://github.com/tooppoo/reportage"
-  version "0.0.8"
+  version "0.0.7"
   license "Apache-2.0"
+  keg_only :versioned_formula
 
   on_macos do
     on_arm do
       url "https://github.com/tooppoo/reportage/releases/download/#{version}/reportage_#{version}_Darwin_arm64.tar.gz"
-      sha256 "05a67a462d4132e36e9a08ade913d24cf7bca5bc4415b3d3d74838eff8bac91e"
+      sha256 "9762aec87bfb96afc3d0f3dab41f2bda6d0f652aa71fef42ed3a7adb7816fbe2"
     end
 
     on_intel do
       url "https://github.com/tooppoo/reportage/releases/download/#{version}/reportage_#{version}_Darwin_x86_64.tar.gz"
-      sha256 "da1db01b1a283a980e4cb605a12264babb9014493f1f96488a8b4c71f9bc3ec6"
+      sha256 "feaca3a7bb3ca16c58ac6aa7a539bfc41a67be49e730c489855d341a3e6aa280"
     end
   end
 
   on_linux do
     on_arm do
       url "https://github.com/tooppoo/reportage/releases/download/#{version}/reportage_#{version}_Linux_aarch64.tar.gz"
-      sha256 "68f4714a6055d49a7a1713cd18c2595e43daff75675c08424e309cd581d29f8f"
+      sha256 "b48eb660bc8065e5170165122c37144d3dcd4241ee1104017e30ca06e4434c7b"
     end
 
     on_intel do
       url "https://github.com/tooppoo/reportage/releases/download/#{version}/reportage_#{version}_Linux_x86_64.tar.gz"
-      sha256 "ec917f25b3cfbed40f444b641b48461dd936f4903def6e25aa741fc6f4d4a2cd"
+      sha256 "16377427bef529f42d694c934b506601a9e96cb7d4247c0c81f14d81519fe6e0"
     end
   end
 
