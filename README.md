@@ -33,8 +33,8 @@ A versioned formula is keg-only, so installing it alongside the current release 
 Either direction is a single `brew link`, with no `brew unlink` first:
 
 ```sh
-brew link git-kura@0.2   # switch to the archived 0.2 line
-brew link git-kura       # switch back to the current release
+brew link <package>@<major>.<minor>   # switch to the archived line
+brew link <package>                   # switch back to the current release
 ```
 
 Uninstalling a versioned formula does not relink the current release, so run `brew link` for it afterwards.
