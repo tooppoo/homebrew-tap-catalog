@@ -1,30 +1,31 @@
-class Enozunu < Formula
+class EnozunuAT03 < Formula
   desc "Cross-provider configuration materializer for AI agent tooling"
   homepage "https://github.com/tooppoo/enozunu"
-  version "0.5.0"
+  version "0.3.0"
   license "Apache-2.0"
+  keg_only :versioned_formula
 
   on_macos do
     on_arm do
       url "https://github.com/tooppoo/enozunu/releases/download/#{version}/enozunu_#{version}_Darwin_arm64.tar.gz"
-      sha256 "89fd3ba5733b79a98c99094a1adbc7a5c2c958849bfc46a3e09541314597b018"
+      sha256 "09fbd4e626a24c9428e370aa57e1a7626cfe660724bcabe97c6a68cf10d05241"
     end
 
     on_intel do
       url "https://github.com/tooppoo/enozunu/releases/download/#{version}/enozunu_#{version}_Darwin_x86_64.tar.gz"
-      sha256 "47bd097eb16e6ea53f12832b051ea70d13bbcd47c7ffab9ddfe2919728584d30"
+      sha256 "938a9380abfd8a7134c859b9283ea7f14c6614f157e4fd909d49d760085e6d08"
     end
   end
 
   on_linux do
     on_arm do
       url "https://github.com/tooppoo/enozunu/releases/download/#{version}/enozunu_#{version}_Linux_aarch64.tar.gz"
-      sha256 "c99b04b9d1c32664f512fa6d9eb46147452fe8bd70620a2faa6d88f4c1558bdf"
+      sha256 "0f0ac0a17f23b58595ec2c790905700ffa6245840d677c5442af6be032c2f19a"
     end
 
     on_intel do
       url "https://github.com/tooppoo/enozunu/releases/download/#{version}/enozunu_#{version}_Linux_x86_64.tar.gz"
-      sha256 "f6c6202e6ad569bb2d13b17882e1ced0396f1c5037cf51324043b8147eaecbc3"
+      sha256 "16ed2afe803ff1ed846541f960d6b25988c564de6f1ec253e9f92408fe39ac41"
     end
   end
 
